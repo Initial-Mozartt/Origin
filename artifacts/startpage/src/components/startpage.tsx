@@ -1,62 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSettings } from "@/hooks/use-settings";
 import { SettingsPanel } from "@/components/settings-panel";
+import { useWeather } from "@/hooks/use-weather";
+import { SearchBar } from "@/components/search-bar";
+import { Pomodoro } from "@/components/pomodoro";
+import { ScratchPad } from "@/components/scratch-pad";
+import { RssFeed } from "@/components/rss-feed";
 
-const WMO_CODES: Record<number, string> = {
-  0: "clear sky",
-  1: "mainly clear",
-  2: "partly cloudy",
-  3: "overcast",
-  45: "fog",
-  48: "icy fog",
-  51: "light drizzle",
-  53: "drizzle",
-  55: "heavy drizzle",
-  61: "light rain",
-  63: "moderate rain",
-  65: "heavy rain",
-  71: "light snow",
-  73: "moderate snow",
-  75: "heavy snow",
-  77: "snow grains",
-  80: "rain showers",
-  81: "moderate showers",
-  82: "violent showers",
-  85: "snow showers",
-  86: "heavy snow showers",
-  95: "thunderstorm",
-  96: "thunderstorm with hail",
-  99: "heavy thunderstorm",
-};
-
-function useWeather(unit: "f" | "c", enabled: boolean) {
-  const [weather, setWeather] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!enabled || !navigator.geolocation) return;
-    setWeather(null);
-
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        try {
-          const tempUnit = unit === "f" ? "fahrenheit" : "celsius";
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&current=temperature_2m,weather_code&temperature_unit=${tempUnit}`;
-          const res = await fetch(url);
-          const data = await res.json();
-          const code: number = data.current.weather_code;
-          const temp: number = Math.round(data.current.temperature_2m);
-          const desc = WMO_CODES[code] ?? "unknown";
-          setWeather(`${desc} - ${temp} ${unit}`);
-        } catch {
-          setWeather(null);
-        }
-      },
-      () => setWeather(null)
-    );
-  }, [unit, enabled]);
-
-  return weather;
-}
+const QUOTES = [
+  "The quieter you become, the more you can hear.",
+  "Do what you can, with what you have, where you are.",
+  "Simplicity is the ultimate sophistication.",
+  "Make it work, make it right, make it fast.",
+  "Less, but better.",
+  "Stay hungry, stay foolish.",
+  "Talk is cheap. Show me the code.",
+  "Programs must be written for people to read, and only incidentally for machines to execute.",
+  "The best way to predict the future is to invent it.",
+  "Quality is not an act, it is a habit.",
+  "First, solve the problem. Then, write the code.",
+  "Experience is the name everyone gives to their mistakes.",
+  "Knowledge is power.",
+  "Sometimes it pays to stay in bed on Monday, rather than spending the rest of the week debugging Monday's code.",
+  "Perfection is achieved, not when there is nothing more to add, but when there is nothing left to take away.",
+  "Code is like humor. When you have to explain it, it’s bad.",
+  "Fix the cause, not the symptom.",
+  "Before software can be reusable it first has to be usable.",
+  "In order to be irreplaceable, one must always be different.",
+  "The only way to do great work is to love what you do.",
+];
 
 function GearIcon() {
   return (
@@ -70,7 +42,20 @@ function GearIcon() {
 export function Startpage() {
   const [time, setTime] = useState(new Date());
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { settings, update, updateBackground, updateClock, updateColumns, resetToDefaults } = useSettings();
+  const [scratchPadOpen, setScratchPadOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const dragSourceIndex = useRef<number | null>(null);
+
+  const {
+    settings,
+    update,
+    updateBackground,
+    updateClock,
+    updateColumns,
+    updateKeybinds,
+    applyThemePreset,
+    resetToDefaults,
+  } = useSettings();
 
   const weather = useWeather(settings.weatherUnit, settings.showWeather);
 
@@ -78,6 +63,58 @@ export function Startpage() {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Custom CSS Injection
+  useEffect(() => {
+    let styleTag = document.getElementById("origin-custom-css");
+    if (!styleTag) {
+      styleTag = document.createElement("style");
+      styleTag.id = "origin-custom-css";
+      document.head.appendChild(styleTag);
+    }
+    styleTag.innerHTML = settings.customCss;
+  }, [settings.customCss]);
+
+  // Font Injection
+  useEffect(() => {
+    const googleFonts = ["JetBrains Mono", "IBM Plex Mono", "Inter"];
+    const fontName = settings.fontFamily.split(",")[0].replace(/['"]/g, "");
+    
+    if (googleFonts.includes(fontName)) {
+      const linkId = `font-${fontName.replace(/\s+/g, "-").toLowerCase()}`;
+      if (!document.getElementById(linkId)) {
+        const link = document.createElement("link");
+        link.id = linkId;
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s+/g, "+")}&display=swap`;
+        document.head.appendChild(link);
+      }
+    }
+  }, [settings.fontFamily]);
+
+  // Keybinds
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
+        return;
+      }
+
+      if (e.key === settings.keybinds.openSettings) {
+        setSettingsOpen((prev) => !prev);
+      } else if (e.key === settings.keybinds.focusSearch && settings.showSearchBar) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === settings.keybinds.toggleScratchPad && settings.scratchPadEnabled) {
+        setScratchPadOpen((prev) => !prev);
+      }
+      // Pomodoro toggle is handled inside Pomodoro component or we could add it here if we want global toggle of visibility? 
+      // Spec says: "Keybind toggles running state (if pomodoroEnabled)" - so it's about running the timer.
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [settings.keybinds, settings.showSearchBar, settings.scratchPadEnabled]);
 
   const timeString = (() => {
     if (settings.clock.format === "12h") {
@@ -95,6 +132,28 @@ export function Startpage() {
     });
   })();
 
+  const dateString = time.toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const getGreeting = () => {
+    const hour = time.getHours();
+    let base = "Good morning.";
+    if (hour >= 12 && hour < 17) base = "Good afternoon.";
+    if (hour >= 17 || hour < 5) base = "Good evening.";
+
+    if (settings.greeting.enabled && settings.greeting.name) {
+      return base.replace(".", `, ${settings.greeting.name}.`);
+    }
+    return base;
+  };
+
+  const dayOfYear = Math.floor((time.getTime() - new Date(time.getFullYear(), 0, 0).getTime()) / 86400000);
+  const quote = QUOTES[dayOfYear % QUOTES.length];
+
   const bgStyle: React.CSSProperties =
     settings.background.type === "image" && settings.background.imageUrl
       ? {
@@ -105,25 +164,39 @@ export function Startpage() {
         }
       : { backgroundColor: settings.background.color };
 
+  const boxBg = settings.background.type === "image" ? "rgba(0,0,0,0.6)" : settings.columnBgColor;
+
+  const handleDragStart = (index: number) => {
+    dragSourceIndex.current = index;
+  };
+
+  const handleDrop = (targetIndex: number) => {
+    if (dragSourceIndex.current === null) return;
+    const newColumns = [...settings.columns];
+    const [removed] = newColumns.splice(dragSourceIndex.current, 1);
+    newColumns.splice(targetIndex, 0, removed);
+    updateColumns(newColumns);
+    dragSourceIndex.current = null;
+  };
+
   return (
     <>
       <div
         style={{
           ...bgStyle,
-          color: "#f8f8f2",
-          fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+          color: settings.foregroundColor,
+          fontFamily: settings.fontFamily,
           margin: 0,
           padding: 0,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          height: "100vh",
-          overflow: "hidden",
+          minHeight: "100vh",
+          overflowX: "hidden",
           position: "relative",
         }}
       >
-        {/* Settings button */}
         <button
           onClick={() => setSettingsOpen(true)}
           data-testid="button-open-settings"
@@ -141,38 +214,71 @@ export function Startpage() {
             alignItems: "center",
             justifyContent: "center",
             transition: "color 0.1s",
+            zIndex: 10,
           }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#ff79c6")}
-          onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#999")}
+          onMouseEnter={(e) => (e.currentTarget.style.color = settings.hoverColor)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#999")}
           aria-label="Open settings"
         >
           <GearIcon />
         </button>
 
-        {/* Clock */}
+        {settings.showSearchBar && (
+          <SearchBar 
+            ref={searchInputRef} 
+            engine={settings.searchEngine} 
+            foregroundColor={settings.foregroundColor} 
+          />
+        )}
+
         <div
           data-testid="text-clock"
           style={{
             fontSize: "5rem",
             fontWeight: 700,
-            marginBottom: "10px",
+            marginBottom: settings.showDate ? "5px" : "10px",
             letterSpacing: "2px",
           }}
         >
           {timeString}
         </div>
 
-        {/* Weather */}
+        {settings.showDate && (
+          <div
+            data-testid="text-date"
+            style={{
+              fontSize: "1.2rem",
+              marginBottom: "10px",
+              opacity: 0.8,
+            }}
+          >
+            {dateString}
+          </div>
+        )}
+
+        {settings.greeting.enabled && (
+          <div
+            data-testid="text-greeting"
+            style={{
+              fontSize: "1.5rem",
+              marginBottom: "20px",
+              opacity: 0.9,
+            }}
+          >
+            {getGreeting()}
+          </div>
+        )}
+
         {settings.showWeather && weather && (
           <div
             data-testid="text-weather"
             style={{
-              backgroundColor: "rgba(0,0,0,0.6)",
+              backgroundColor: boxBg,
               padding: "8px 60px",
               borderRadius: "2px",
               fontSize: "1.2rem",
-              marginBottom: "40px",
-              color: "#f8f8f2",
+              marginBottom: "20px",
+              color: settings.foregroundColor,
               textTransform: "lowercase",
             }}
           >
@@ -180,20 +286,46 @@ export function Startpage() {
           </div>
         )}
 
-        {(!settings.showWeather || !weather) && (
-          <div style={{ marginBottom: "40px", height: "42px" }} />
+        {settings.showQuote && (
+          <div
+            data-testid="text-quote"
+            style={{
+              fontSize: "0.9rem",
+              fontStyle: "italic",
+              opacity: 0.6,
+              marginBottom: "20px",
+              maxWidth: "600px",
+              textAlign: "center",
+              padding: "0 20px",
+            }}
+          >
+            {quote}
+          </div>
         )}
 
-        {/* Link columns */}
-        <div style={{ display: "flex", gap: "15px", flexWrap: "wrap", justifyContent: "center" }}>
+        {settings.pomodoroEnabled && (
+          <Pomodoro 
+            workMinutes={settings.pomodoroWorkMinutes} 
+            breakMinutes={settings.pomodoroBreakMinutes} 
+            foregroundColor={settings.foregroundColor}
+            columnBgColor={boxBg}
+          />
+        )}
+
+        <div style={{ display: "flex", gap: "15px", flexWrap: "wrap", justifyContent: "center", padding: "20px" }}>
           {settings.columns.map((col, colIdx) => (
             <div
               key={colIdx}
+              draggable
+              onDragStart={() => handleDragStart(colIdx)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => handleDrop(colIdx)}
               style={{
-                backgroundColor: "rgba(0,0,0,0.6)",
+                backgroundColor: boxBg,
                 padding: "20px",
                 width: "140px",
                 borderRadius: "2px",
+                cursor: "default",
               }}
             >
               <h3
@@ -201,7 +333,7 @@ export function Startpage() {
                   marginTop: 0,
                   fontSize: "1rem",
                   marginBottom: "15px",
-                  color: "#f8f8f2",
+                  color: settings.foregroundColor,
                   textAlign: "left",
                   fontWeight: "bold",
                 }}
@@ -220,12 +352,8 @@ export function Startpage() {
                         fontSize: "0.85rem",
                         transition: "color 0.1s",
                       }}
-                      onMouseEnter={(e) =>
-                        ((e.currentTarget as HTMLAnchorElement).style.color = "#ff79c6")
-                      }
-                      onMouseLeave={(e) =>
-                        ((e.currentTarget as HTMLAnchorElement).style.color = "#999")
-                      }
+                      onMouseEnter={(e) => (e.currentTarget.style.color = settings.hoverColor)}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = "#999")}
                     >
                       {link.name}
                     </a>
@@ -234,8 +362,26 @@ export function Startpage() {
               </ul>
             </div>
           ))}
+
+          {settings.rssFeeds.map((feed, idx) => (
+            <RssFeed
+              key={`rss-${idx}`}
+              url={feed.url}
+              label={feed.label}
+              maxItems={feed.maxItems}
+              columnBgColor={boxBg}
+              hoverColor={settings.hoverColor}
+              foregroundColor={settings.foregroundColor}
+            />
+          ))}
         </div>
       </div>
+
+      <ScratchPad 
+        isOpen={scratchPadOpen} 
+        onClose={() => setScratchPadOpen(false)} 
+        foregroundColor={settings.foregroundColor}
+      />
 
       {settingsOpen && (
         <SettingsPanel
@@ -243,6 +389,8 @@ export function Startpage() {
           onUpdateBackground={updateBackground}
           onUpdateClock={updateClock}
           onUpdateColumns={updateColumns}
+          onUpdateKeybinds={updateKeybinds}
+          onApplyThemePreset={applyThemePreset}
           onUpdate={update}
           onReset={resetToDefaults}
           onClose={() => setSettingsOpen(false)}

@@ -10,6 +10,12 @@ export interface Column {
   links: LinkItem[];
 }
 
+export interface RssFeed {
+  url: string;
+  label: string;
+  maxItems: number;
+}
+
 export interface Background {
   type: "color" | "image";
   color: string;
@@ -22,15 +28,47 @@ export interface ClockSettings {
   showSeconds: boolean;
 }
 
+export interface Keybinds {
+  openSettings: string;
+  focusSearch: string;
+  toggleScratchPad: string;
+  togglePomodoro: string;
+}
+
 export interface Settings {
   columns: Column[];
   background: Background;
   clock: ClockSettings;
   showWeather: boolean;
   weatherUnit: "f" | "c";
+  showDate: boolean;
+  greeting: { enabled: boolean; name: string };
+  showSearchBar: boolean;
+  searchEngine: "google" | "duckduckgo" | "brave" | "bing";
+  showQuote: boolean;
+  scratchPadEnabled: boolean;
+  pomodoroEnabled: boolean;
+  pomodoroWorkMinutes: number;
+  pomodoroBreakMinutes: number;
+  rssFeeds: RssFeed[];
+  themePreset: "custom" | "dracula" | "nord" | "gruvbox" | "catppuccin" | "tokyo-night";
+  columnBgColor: string;
+  hoverColor: string;
+  foregroundColor: string;
+  fontFamily: string;
+  customCss: string;
+  keybinds: Keybinds;
 }
 
-const DEFAULT_COLUMNS: Column[] = [
+export const THEME_PRESETS = {
+  dracula: { bg: "#282a36", col: "#111111", hover: "#ff79c6", fg: "#f8f8f2" },
+  nord: { bg: "#2e3440", col: "#3b4252", hover: "#88c0d0", fg: "#eceff4" },
+  gruvbox: { bg: "#282828", col: "#1d2021", hover: "#fabd2f", fg: "#ebdbb2" },
+  catppuccin: { bg: "#1e1e2e", col: "#181825", hover: "#f38ba8", fg: "#cdd6f4" },
+  "tokyo-night": { bg: "#1a1b26", col: "#16161e", hover: "#7aa2f7", fg: "#c0caf5" },
+};
+
+export const DEFAULT_COLUMNS: Column[] = [
   {
     heading: "Linux News",
     links: [
@@ -78,7 +116,7 @@ const DEFAULT_COLUMNS: Column[] = [
   },
 ];
 
-const DEFAULT_SETTINGS: Settings = {
+export const DEFAULT_SETTINGS: Settings = {
   columns: DEFAULT_COLUMNS,
   background: {
     type: "color",
@@ -92,6 +130,28 @@ const DEFAULT_SETTINGS: Settings = {
   },
   showWeather: true,
   weatherUnit: "f",
+  showDate: false,
+  greeting: { enabled: false, name: "" },
+  showSearchBar: false,
+  searchEngine: "google",
+  showQuote: false,
+  scratchPadEnabled: false,
+  pomodoroEnabled: false,
+  pomodoroWorkMinutes: 25,
+  pomodoroBreakMinutes: 5,
+  rssFeeds: [],
+  themePreset: "dracula",
+  columnBgColor: "#111111",
+  hoverColor: "#ff79c6",
+  foregroundColor: "#f8f8f2",
+  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+  customCss: "",
+  keybinds: {
+    openSettings: ",",
+    focusSearch: "/",
+    toggleScratchPad: "n",
+    togglePomodoro: "p",
+  },
 };
 
 const STORAGE_KEY = "startpage_settings";
@@ -100,12 +160,14 @@ function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw) as Partial<Settings>;
+    const parsed = JSON.parse(raw);
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
       background: { ...DEFAULT_SETTINGS.background, ...parsed.background },
       clock: { ...DEFAULT_SETTINGS.clock, ...parsed.clock },
+      greeting: { ...DEFAULT_SETTINGS.greeting, ...parsed.greeting },
+      keybinds: { ...DEFAULT_SETTINGS.keybinds, ...parsed.keybinds },
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -131,6 +193,7 @@ export function useSettings() {
     setSettings((prev) => ({
       ...prev,
       background: { ...prev.background, ...patch },
+      themePreset: "custom",
     }));
   }
 
@@ -145,6 +208,25 @@ export function useSettings() {
     setSettings((prev) => ({ ...prev, columns }));
   }
 
+  function updateKeybinds(patch: Partial<Keybinds>) {
+    setSettings((prev) => ({
+      ...prev,
+      keybinds: { ...prev.keybinds, ...patch },
+    }));
+  }
+
+  function applyThemePreset(presetName: keyof typeof THEME_PRESETS) {
+    const preset = THEME_PRESETS[presetName];
+    setSettings((prev) => ({
+      ...prev,
+      themePreset: presetName,
+      background: { ...prev.background, color: preset.bg },
+      columnBgColor: preset.col,
+      hoverColor: preset.hover,
+      foregroundColor: preset.fg,
+    }));
+  }
+
   function resetToDefaults() {
     setSettings(DEFAULT_SETTINGS);
   }
@@ -155,6 +237,8 @@ export function useSettings() {
     updateBackground,
     updateClock,
     updateColumns,
+    updateKeybinds,
+    applyThemePreset,
     resetToDefaults,
   };
 }
