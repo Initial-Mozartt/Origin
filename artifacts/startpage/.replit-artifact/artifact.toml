@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "Startpage"
+title = "Origin"
 version = "1.0.0"
 id = "artifacts/startpage"
 router = "path"
