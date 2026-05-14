@@ -12,6 +12,9 @@ interface RssFeedProps {
   columnBgColor: string;
   hoverColor: string;
   foregroundColor: string;
+  linkColor?: string;
+  columnHeaderColor?: string;
+  openLinksInNewTab?: boolean;
 }
 
 export function RssFeed({
@@ -21,6 +24,9 @@ export function RssFeed({
   columnBgColor,
   hoverColor,
   foregroundColor,
+  linkColor = "#999",
+  columnHeaderColor,
+  openLinksInNewTab = false,
 }: RssFeedProps) {
   const [items, setItems] = useState<RssFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +80,7 @@ export function RssFeed({
           marginTop: 0,
           fontSize: "1rem",
           marginBottom: "15px",
-          color: foregroundColor,
+          color: columnHeaderColor || foregroundColor,
           textAlign: "left",
           fontWeight: "bold",
         }}
@@ -88,8 +94,10 @@ export function RssFeed({
           <li key={idx} style={{ marginBottom: "6px" }}>
             <a
               href={item.link}
+              target={openLinksInNewTab ? "_blank" : undefined}
+              rel={openLinksInNewTab ? "noopener noreferrer" : undefined}
               style={{
-                color: "#999",
+                color: linkColor,
                 textDecoration: "none",
                 fontSize: "0.85rem",
                 transition: "color 0.1s",
@@ -99,7 +107,7 @@ export function RssFeed({
                 whiteSpace: "nowrap",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.color = hoverColor)}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#999")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = linkColor)}
               data-testid={`rss-link-${idx}`}
             >
               {item.title}

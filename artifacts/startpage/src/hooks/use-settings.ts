@@ -37,6 +37,28 @@ export interface Keybinds {
   toggleQuote: string;
   toggleScratchPad: string;
   togglePomodoro: string;
+  toggleCalculator: string;
+  toggleQuickOpen: string;
+  cycleBackground: string;
+  nextPage: string;
+  prevPage: string;
+}
+
+export interface Page {
+  name: string;
+  columns: Column[];
+}
+
+export interface WorldClock {
+  label: string;
+  timezone: string;
+}
+
+export interface BackgroundCycle {
+  enabled: boolean;
+  urls: string[];
+  intervalSeconds: number;
+  currentIndex: number;
 }
 
 export interface Settings {
@@ -62,6 +84,21 @@ export interface Settings {
   fontFamily: string;
   customCss: string;
   keybinds: Keybinds;
+  openLinksInNewTab: boolean;
+  keyboardNavEnabled: boolean;
+  quickOpenEnabled: boolean;
+  pages: Page[];
+  currentPage: number;
+  worldClocks: WorldClock[];
+  countdown: { enabled: boolean; label: string; date: string };
+  calculatorEnabled: boolean;
+  motd: { enabled: boolean; text: string };
+  frostedGlass: boolean;
+  linkColor: string;
+  columnHeaderColor: string;
+  compactMode: boolean;
+  scratchHistoryEnabled: boolean;
+  backgroundCycle: BackgroundCycle;
 }
 
 export const THEME_PRESETS = {
@@ -159,7 +196,27 @@ export const DEFAULT_SETTINGS: Settings = {
     toggleQuote: "q",
     toggleScratchPad: "n",
     togglePomodoro: "p",
+    toggleCalculator: "c",
+    toggleQuickOpen: "o",
+    cycleBackground: "b",
+    nextPage: "]",
+    prevPage: "[",
   },
+  openLinksInNewTab: false,
+  keyboardNavEnabled: false,
+  quickOpenEnabled: false,
+  pages: [],
+  currentPage: 0,
+  worldClocks: [],
+  countdown: { enabled: false, label: "", date: "" },
+  calculatorEnabled: false,
+  motd: { enabled: false, text: "" },
+  frostedGlass: false,
+  linkColor: "#999999",
+  columnHeaderColor: "",
+  compactMode: false,
+  scratchHistoryEnabled: false,
+  backgroundCycle: { enabled: false, urls: [], intervalSeconds: 0, currentIndex: 0 },
 };
 
 const STORAGE_KEY = "startpage_settings";
@@ -169,6 +226,8 @@ function loadSettings(): Settings {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
+    
+    // Deep merge for nested objects
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
@@ -176,6 +235,11 @@ function loadSettings(): Settings {
       clock: { ...DEFAULT_SETTINGS.clock, ...parsed.clock },
       greeting: { ...DEFAULT_SETTINGS.greeting, ...parsed.greeting },
       keybinds: { ...DEFAULT_SETTINGS.keybinds, ...parsed.keybinds },
+      countdown: { ...DEFAULT_SETTINGS.countdown, ...parsed.countdown },
+      motd: { ...DEFAULT_SETTINGS.motd, ...parsed.motd },
+      backgroundCycle: { ...DEFAULT_SETTINGS.backgroundCycle, ...parsed.backgroundCycle },
+      pages: parsed.pages || DEFAULT_SETTINGS.pages,
+      worldClocks: parsed.worldClocks || DEFAULT_SETTINGS.worldClocks,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -223,6 +287,74 @@ export function useSettings() {
     }));
   }
 
+  function updateActiveColumns(columns: Column[]) {
+    setSettings((prev) => {
+      if (prev.pages.length > 0) {
+        const newPages = [...prev.pages];
+        newPages[prev.currentPage] = { ...newPages[prev.currentPage], columns };
+        return { ...prev, pages: newPages };
+      }
+      return { ...prev, columns };
+    });
+  }
+
+  function setCurrentPage(n: number) {
+    setSettings((prev) => ({ ...prev, currentPage: n }));
+  }
+
+  function addPage(name: string) {
+    setSettings((prev) => {
+      const initialColumns = prev.pages.length === 0 ? prev.columns : [];
+      const newPages = prev.pages.length === 0 
+        ? [{ name: "Home", columns: prev.columns }, { name, columns: [] }]
+        : [...prev.pages, { name, columns: [] }];
+      return {
+        ...prev,
+        pages: newPages,
+        currentPage: newPages.length - 1
+      };
+    });
+  }
+
+  function removePage(n: number) {
+    setSettings((prev) => {
+      const newPages = prev.pages.filter((_, i) => i !== n);
+      let newCurrent = prev.currentPage;
+      if (newCurrent >= newPages.length) newCurrent = Math.max(0, newPages.length - 1);
+      return {
+        ...prev,
+        pages: newPages,
+        currentPage: newCurrent
+      };
+    });
+  }
+
+  function renamePage(n: number, name: string) {
+    setSettings((prev) => {
+      const newPages = [...prev.pages];
+      newPages[n] = { ...newPages[n], name };
+      return { ...prev, pages: newPages };
+    });
+  }
+
+  function importSettings(data: any) {
+    setSettings((prev) => ({
+      ...prev,
+      ...data,
+      // Ensure nested objects are merged or at least present
+      background: { ...DEFAULT_SETTINGS.background, ...data.background },
+      clock: { ...DEFAULT_SETTINGS.clock, ...data.clock },
+      keybinds: { ...DEFAULT_SETTINGS.keybinds, ...data.keybinds },
+    }));
+  }
+
+  function updateBackgroundCycle(patch: Partial<BackgroundCycle>) {
+    setSettings((prev) => ({
+      ...prev,
+      backgroundCycle: { ...prev.backgroundCycle, ...patch }
+    }));
+  }
+
   function applyThemePreset(presetName: keyof typeof THEME_PRESETS) {
     const preset = THEME_PRESETS[presetName];
     setSettings((prev) => ({
@@ -246,6 +378,13 @@ export function useSettings() {
     updateClock,
     updateColumns,
     updateKeybinds,
+    updateActiveColumns,
+    setCurrentPage,
+    addPage,
+    removePage,
+    renamePage,
+    importSettings,
+    updateBackgroundCycle,
     applyThemePreset,
     resetToDefaults,
   };

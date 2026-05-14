@@ -6,6 +6,9 @@ import { SearchBar } from "@/components/search-bar";
 import { Pomodoro } from "@/components/pomodoro";
 import { ScratchPad } from "@/components/scratch-pad";
 import { RssFeed } from "@/components/rss-feed";
+import { QuickOpen } from "@/components/quick-open";
+import { WorldClocks } from "@/components/world-clocks";
+import { Calculator } from "@/components/calculator";
 
 const QUOTES = [
   "The quieter you become, the more you can hear.",
@@ -43,6 +46,12 @@ export function Startpage() {
   const [time, setTime] = useState(new Date());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scratchPadOpen, setScratchPadOpen] = useState(false);
+  const [quickOpenVisible, setQuickOpenVisible] = useState(false);
+  const [calculatorVisible, setCalculatorVisible] = useState(false);
+  const [focusedCol, setFocusedCol] = useState<number | null>(null);
+  const [focusedLink, setFocusedLink] = useState<number | null>(null);
+  const [isEditingMotd, setIsEditingMotd] = useState(false);
+  
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dragSourceIndex = useRef<number | null>(null);
 
@@ -53,9 +62,20 @@ export function Startpage() {
     updateClock,
     updateColumns,
     updateKeybinds,
+    updateActiveColumns,
+    setCurrentPage,
+    addPage,
+    removePage,
+    renamePage,
+    importSettings,
+    updateBackgroundCycle,
     applyThemePreset,
     resetToDefaults,
   } = useSettings();
+
+  const activeColumns = settings.pages.length > 0 && settings.pages[settings.currentPage]
+    ? settings.pages[settings.currentPage].columns
+    : settings.columns;
 
   const weather = useWeather(settings.weatherUnit, settings.showWeather);
 
@@ -63,6 +83,30 @@ export function Startpage() {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const dayOfYear = Math.floor((time.getTime() - new Date(time.getFullYear(), 0, 0).getTime()) / 86400000);
+  const quote = QUOTES[dayOfYear % QUOTES.length];
+
+  // Background cycling
+  useEffect(() => {
+    if (settings.backgroundCycle.enabled && settings.backgroundCycle.urls.length > 0 && settings.backgroundCycle.intervalSeconds > 0) {
+      const interval = setInterval(() => {
+        const nextIdx = (settings.backgroundCycle.currentIndex + 1) % settings.backgroundCycle.urls.length;
+        updateBackgroundCycle({ currentIndex: nextIdx });
+        updateBackground({ imageUrl: settings.backgroundCycle.urls[nextIdx], type: "image" });
+      }, settings.backgroundCycle.intervalSeconds * 1000);
+      return () => clearInterval(interval);
+    }
+    return undefined;
+  }, [settings.backgroundCycle.enabled, settings.backgroundCycle.urls, settings.backgroundCycle.intervalSeconds, settings.backgroundCycle.currentIndex]);
+
+  // Handle manual background cycle keybind
+  const cycleBg = () => {
+    if (settings.backgroundCycle.urls.length === 0) return;
+    const nextIdx = (settings.backgroundCycle.currentIndex + 1) % settings.backgroundCycle.urls.length;
+    updateBackgroundCycle({ currentIndex: nextIdx });
+    updateBackground({ imageUrl: settings.backgroundCycle.urls[nextIdx], type: "image" });
+  };
 
   // Custom CSS Injection
   useEffect(() => {
@@ -94,13 +138,72 @@ export function Startpage() {
 
   // Keybinds — each key toggles its feature on/off
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
         return;
       }
 
       const kb = settings.keybinds;
+      
+      // Keyboard Navigation
+      if (settings.keyboardNavEnabled) {
+        if (e.key === "Escape") {
+          setFocusedCol(null);
+          setFocusedLink(null);
+          return;
+        }
+
+        if (focusedCol === null) {
+          if (e.key === "ArrowRight") {
+            setFocusedCol(0);
+            return;
+          }
+          if (e.key === "ArrowLeft") {
+            setFocusedCol(activeColumns.length - 1);
+            return;
+          }
+        } else {
+          if (e.key === "ArrowRight") {
+            setFocusedCol((focusedCol + 1) % activeColumns.length);
+            setFocusedLink(null);
+            return;
+          }
+          if (e.key === "ArrowLeft") {
+            setFocusedCol((focusedCol - 1 + activeColumns.length) % activeColumns.length);
+            setFocusedLink(null);
+            return;
+          }
+          if (e.key === "ArrowDown") {
+            const links = activeColumns[focusedCol].links;
+            if (focusedLink === null) setFocusedLink(0);
+            else setFocusedLink((focusedLink + 1) % links.length);
+            return;
+          }
+          if (e.key === "ArrowUp") {
+            const links = activeColumns[focusedCol].links;
+            if (focusedLink === null) setFocusedLink(links.length - 1);
+            else setFocusedLink((focusedLink - 1 + links.length) % links.length);
+            return;
+          }
+          if (e.key >= "1" && e.key <= "9") {
+            const idx = parseInt(e.key) - 1;
+            const link = activeColumns[focusedCol].links[idx];
+            if (link) {
+              window.open(link.url, settings.openLinksInNewTab ? "_blank" : "_self", settings.openLinksInNewTab ? "noopener noreferrer" : undefined);
+            }
+            return;
+          }
+          if (e.key === "Enter" && focusedLink !== null) {
+            const link = activeColumns[focusedCol].links[focusedLink];
+            if (link) {
+              window.open(link.url, settings.openLinksInNewTab ? "_blank" : "_self", settings.openLinksInNewTab ? "noopener noreferrer" : undefined);
+            }
+            return;
+          }
+        }
+      }
+
       if (e.key === kb.openSettings) {
         setSettingsOpen((prev) => !prev);
       } else if (e.key === kb.toggleSearch) {
@@ -117,12 +220,22 @@ export function Startpage() {
         setScratchPadOpen((prev) => !prev);
       } else if (e.key === kb.togglePomodoro) {
         update({ pomodoroEnabled: !settings.pomodoroEnabled });
+      } else if (e.key === kb.toggleCalculator) {
+        setCalculatorVisible(prev => !prev);
+      } else if (e.key === kb.toggleQuickOpen) {
+        setQuickOpenVisible(prev => !prev);
+      } else if (e.key === kb.cycleBackground) {
+        cycleBg();
+      } else if (e.key === kb.nextPage && settings.pages.length > 1) {
+        setCurrentPage((settings.currentPage + 1) % settings.pages.length);
+      } else if (e.key === kb.prevPage && settings.pages.length > 1) {
+        setCurrentPage((settings.currentPage - 1 + settings.pages.length) % settings.pages.length);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [settings.keybinds, settings.showSearchBar, settings.showWeather, settings.showDate, settings.greeting, settings.showQuote, settings.pomodoroEnabled, update]);
+  }, [settings, activeColumns, focusedCol, focusedLink, update, setCurrentPage]);
 
   const timeString = (() => {
     if (settings.clock.format === "12h") {
@@ -159,8 +272,19 @@ export function Startpage() {
     return base;
   };
 
-  const dayOfYear = Math.floor((time.getTime() - new Date(time.getFullYear(), 0, 0).getTime()) / 86400000);
-  const quote = QUOTES[dayOfYear % QUOTES.length];
+  const countdownString = (() => {
+    if (!settings.countdown.enabled || !settings.countdown.date) return null;
+    const target = new Date(settings.countdown.date);
+    target.setHours(0, 0, 0, 0);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const diffTime = target.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return `${settings.countdown.label}: today!`;
+    if (diffDays > 0) return `${diffDays} days until ${settings.countdown.label}`;
+    return `${Math.abs(diffDays)} days since ${settings.countdown.label}`;
+  })();
 
   const bgStyle: React.CSSProperties =
     settings.background.type === "image" && settings.background.imageUrl
@@ -172,7 +296,28 @@ export function Startpage() {
         }
       : { backgroundColor: settings.background.color };
 
-  const boxBg = settings.background.type === "image" ? "rgba(0,0,0,0.6)" : settings.columnBgColor;
+  const boxBg = settings.frostedGlass 
+    ? (settings.background.type === "image" ? "rgba(0,0,0,0.6)" : settings.columnBgColor.replace("rgb", "rgba").replace(")", ", 0.6)")) 
+    : (settings.background.type === "image" ? "rgba(0,0,0,0.6)" : settings.columnBgColor);
+
+  const glassStyle: React.CSSProperties = settings.frostedGlass ? {
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+  } : {};
+
+  // Simple hex to rgba for frosted glass if it's hex
+  const getBoxBg = () => {
+    if (!settings.frostedGlass) return boxBg;
+    if (boxBg.startsWith("#")) {
+      const r = parseInt(boxBg.slice(1, 3), 16);
+      const g = parseInt(boxBg.slice(3, 5), 16);
+      const b = parseInt(boxBg.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, 0.6)`;
+    }
+    return boxBg;
+  };
+
+  const finalBoxBg = getBoxBg();
 
   const handleDragStart = (index: number) => {
     dragSourceIndex.current = index;
@@ -180,10 +325,10 @@ export function Startpage() {
 
   const handleDrop = (targetIndex: number) => {
     if (dragSourceIndex.current === null) return;
-    const newColumns = [...settings.columns];
+    const newColumns = [...activeColumns];
     const [removed] = newColumns.splice(dragSourceIndex.current, 1);
     newColumns.splice(targetIndex, 0, removed);
-    updateColumns(newColumns);
+    updateActiveColumns(newColumns);
     dragSourceIndex.current = null;
   };
 
@@ -242,7 +387,7 @@ export function Startpage() {
         <div
           data-testid="text-clock"
           style={{
-            fontSize: "5rem",
+            fontSize: settings.compactMode ? "3.5rem" : "5rem",
             fontWeight: 700,
             marginBottom: settings.showDate ? "5px" : "10px",
             letterSpacing: "2px",
@@ -250,6 +395,50 @@ export function Startpage() {
         >
           {timeString}
         </div>
+
+        <WorldClocks 
+          clocks={settings.worldClocks} 
+          format={settings.clock.format} 
+          foregroundColor={settings.foregroundColor} 
+          time={time} 
+        />
+
+        {settings.motd.enabled && (
+          <div
+            data-testid="text-motd"
+            style={{
+              fontSize: "0.9rem",
+              fontStyle: "italic",
+              opacity: 0.6,
+              marginBottom: "10px",
+              cursor: "pointer",
+              textAlign: "center"
+            }}
+          >
+            {isEditingMotd ? (
+              <input
+                autoFocus
+                value={settings.motd.text}
+                onChange={(e) => update({ motd: { ...settings.motd, text: e.target.value } })}
+                onBlur={() => setIsEditingMotd(false)}
+                onKeyDown={(e) => e.key === "Enter" && setIsEditingMotd(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  borderBottom: `1px solid ${settings.foregroundColor}`,
+                  color: "inherit",
+                  fontFamily: "inherit",
+                  fontSize: "inherit",
+                  fontStyle: "inherit",
+                  textAlign: "center",
+                  outline: "none"
+                }}
+              />
+            ) : (
+              <span onClick={() => setIsEditingMotd(true)}>{settings.motd.text || "Click to set MOTD"}</span>
+            )}
+          </div>
+        )}
 
         {settings.showDate && (
           <div
@@ -268,8 +457,8 @@ export function Startpage() {
           <div
             data-testid="text-greeting"
             style={{
-              fontSize: "1.5rem",
-              marginBottom: "20px",
+              fontSize: settings.compactMode ? "1.2rem" : "1.5rem",
+              marginBottom: settings.compactMode ? "10px" : "20px",
               opacity: 0.9,
             }}
           >
@@ -277,15 +466,29 @@ export function Startpage() {
           </div>
         )}
 
+        {countdownString && (
+          <div
+            data-testid="text-countdown"
+            style={{
+              fontSize: "1rem",
+              marginBottom: "10px",
+              opacity: 0.7,
+            }}
+          >
+            {countdownString}
+          </div>
+        )}
+
         {settings.showWeather && weather && (
           <div
             data-testid="text-weather"
             style={{
-              backgroundColor: boxBg,
-              padding: "8px 60px",
+              backgroundColor: finalBoxBg,
+              ...glassStyle,
+              padding: settings.compactMode ? "6px 40px" : "8px 60px",
               borderRadius: "2px",
-              fontSize: "1.2rem",
-              marginBottom: "20px",
+              fontSize: settings.compactMode ? "1rem" : "1.2rem",
+              marginBottom: settings.compactMode ? "10px" : "20px",
               color: settings.foregroundColor,
               textTransform: "lowercase",
             }}
@@ -316,12 +519,18 @@ export function Startpage() {
             workMinutes={settings.pomodoroWorkMinutes} 
             breakMinutes={settings.pomodoroBreakMinutes} 
             foregroundColor={settings.foregroundColor}
-            columnBgColor={boxBg}
+            columnBgColor={finalBoxBg}
           />
         )}
 
-        <div style={{ display: "flex", gap: "15px", flexWrap: "wrap", justifyContent: "center", padding: "20px" }}>
-          {settings.columns.map((col, colIdx) => (
+        <div style={{ 
+          display: "flex", 
+          gap: settings.compactMode ? "10px" : "15px", 
+          flexWrap: "wrap", 
+          justifyContent: "center", 
+          padding: settings.compactMode ? "10px" : "20px" 
+        }}>
+          {activeColumns.map((col, colIdx) => (
             <div
               key={colIdx}
               draggable
@@ -329,19 +538,21 @@ export function Startpage() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => handleDrop(colIdx)}
               style={{
-                backgroundColor: boxBg,
-                padding: "20px",
-                width: "140px",
+                backgroundColor: finalBoxBg,
+                ...glassStyle,
+                padding: settings.compactMode ? "12px" : "20px",
+                width: settings.compactMode ? "120px" : "140px",
                 borderRadius: "2px",
                 cursor: "default",
+                border: settings.keyboardNavEnabled && focusedCol === colIdx ? `1px solid ${settings.hoverColor}` : "1px solid transparent",
               }}
             >
               <h3
                 style={{
                   marginTop: 0,
                   fontSize: "1rem",
-                  marginBottom: "15px",
-                  color: settings.foregroundColor,
+                  marginBottom: settings.compactMode ? "10px" : "15px",
+                  color: settings.columnHeaderColor || settings.foregroundColor,
                   textAlign: "left",
                   fontWeight: "bold",
                 }}
@@ -353,15 +564,17 @@ export function Startpage() {
                   <li key={linkIdx} style={{ marginBottom: "6px" }}>
                     <a
                       href={link.url}
+                      target={settings.openLinksInNewTab ? "_blank" : undefined}
+                      rel={settings.openLinksInNewTab ? "noopener noreferrer" : undefined}
                       data-testid={`link-${colIdx}-${linkIdx}`}
                       style={{
-                        color: "#999",
+                        color: settings.keyboardNavEnabled && focusedCol === colIdx && focusedLink === linkIdx ? settings.hoverColor : settings.linkColor,
                         textDecoration: "none",
                         fontSize: "0.85rem",
                         transition: "color 0.1s",
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.color = settings.hoverColor)}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = "#999")}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = settings.keyboardNavEnabled && focusedCol === colIdx && focusedLink === linkIdx ? settings.hoverColor : settings.linkColor)}
                     >
                       {link.name}
                     </a>
@@ -377,17 +590,53 @@ export function Startpage() {
               url={feed.url}
               label={feed.label}
               maxItems={feed.maxItems}
-              columnBgColor={boxBg}
+              columnBgColor={finalBoxBg}
               hoverColor={settings.hoverColor}
               foregroundColor={settings.foregroundColor}
+              linkColor={settings.linkColor}
+              columnHeaderColor={settings.columnHeaderColor}
+              openLinksInNewTab={settings.openLinksInNewTab}
             />
           ))}
         </div>
+
+        {settings.pages.length > 1 && (
+          <div
+            style={{
+              marginTop: "20px",
+              opacity: 0.4,
+              fontSize: "0.8rem",
+            }}
+          >
+            {settings.currentPage + 1} / {settings.pages.length}
+          </div>
+        )}
       </div>
 
       <ScratchPad 
         isOpen={scratchPadOpen} 
         onClose={() => setScratchPadOpen(false)} 
+        foregroundColor={settings.foregroundColor}
+        historyEnabled={settings.scratchHistoryEnabled}
+        onSaveToHistory={(text) => {
+          const history = JSON.parse(localStorage.getItem("origin_scratch_history") || "[]");
+          const newHistory = [text, ...history.filter((h: string) => h !== text)].slice(0, 20);
+          localStorage.setItem("origin_scratch_history", JSON.stringify(newHistory));
+        }}
+      />
+
+      <QuickOpen
+        isOpen={quickOpenVisible}
+        onClose={() => setQuickOpenVisible(false)}
+        pages={settings.pages}
+        fallbackColumns={settings.columns}
+        onOpenLink={(url) => window.open(url, settings.openLinksInNewTab ? "_blank" : "_self", settings.openLinksInNewTab ? "noopener noreferrer" : undefined)}
+        foregroundColor={settings.foregroundColor}
+      />
+
+      <Calculator
+        isOpen={calculatorVisible}
+        onClose={() => setCalculatorVisible(false)}
         foregroundColor={settings.foregroundColor}
       />
 
@@ -398,6 +647,13 @@ export function Startpage() {
           onUpdateClock={updateClock}
           onUpdateColumns={updateColumns}
           onUpdateKeybinds={updateKeybinds}
+          onUpdateActiveColumns={updateActiveColumns}
+          onSetCurrentPage={setCurrentPage}
+          onAddPage={addPage}
+          onRemovePage={removePage}
+          onRenamePage={renamePage}
+          onImportSettings={importSettings}
+          onUpdateBackgroundCycle={updateBackgroundCycle}
           onApplyThemePreset={applyThemePreset}
           onUpdate={update}
           onReset={resetToDefaults}
