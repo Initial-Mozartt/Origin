@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Startpage</title>
+    <style>
+        /* Matches the background and feel of the video screenshot */
+        body {
+            background-color: #282a36; 
+            color: #f8f8f2;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Centered Digital Clock */
+        #clock {
+            font-size: 5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        /* Weather info box */
+        #weather {
+            background-color: #111111;
+            padding: 8px 60px;
+            border-radius: 2px;
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            color: #f8f8f2;
+            text-transform: lowercase;
+        }
+
+        /* Grid container for link columns */
+        .container {
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Column boxes */
+        .column {
+            background-color: #111111;
+            padding: 20px;
+            width: 140px;
+            border-radius: 2px;
+        }
+
+        .column h3 {
+            margin-top: 0;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            color: #f8f8f2;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .column ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .column li {
+            margin-bottom: 6px;
+        }
+
+        .column a {
+            color: #999;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.1s;
+        }
+
+        .column a:hover {
+            color: #ff79c6;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="clock">00:00:00</div>
+    <div id="weather">moderate rain - 46 F</div>
+
+    <div class="container">
+        <div class="column">
+            <h3>Linux News</h3>
+            <ul>
+                <li><a href="#">DistroTube.com</a></li>
+                <li><a href="#">LinuxToday</a></li>
+                <li><a href="#">LinuxInsider</a></li>
+                <li><a href="#">OMG Ubuntu</a></li>
+                <li><a href="#">Phoronix</a></li>
+            </ul>
+        </div>
+
+        <div class="column">
+            <h3>Arch Linux</h3>
+            <ul>
+                <li><a href="#">Arch Wiki</a></li>
+                <li><a href="#">Packages</a></li>
+                <li><a href="#">AUR Home</a></li>
+                <li><a href="#">Arch Forums</a></li>
+            </ul>
+        </div>
+
+        <div class="column">
+            <h3>Suckless</h3>
+            <ul>
+                <li><a href="#">Homepage</a></li>
+                <li><a href="#">dwm</a></li>
+                <li><a href="#">st</a></li>
+                <li><a href="#">dmenu</a></li>
+            </ul>
+        </div>
+
+        <div class="column">
+            <h3>Social</h3>
+            <ul>
+                <li><a href="#">YouTube</a></li>
+                <li><a href="#">GitLab</a></li>
+                <li><a href="#">GitHub</a></li>
+                <li><a href="#">Mastodon</a></li>
+            </ul>
+        </div>
+
+        <div class="column">
+            <h3>Reddit</h3>
+            <ul>
+                <li><a href="#">/r/linux</a></li>
+                <li><a href="#">/r/archlinux</a></li>
+                <li><a href="#">/r/suckless</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-GB', { hour12: false });
+            document.getElementById('clock').textContent = timeString;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+</body>
+</html>
