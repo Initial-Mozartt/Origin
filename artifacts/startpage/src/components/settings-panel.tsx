@@ -697,15 +697,33 @@ export function SettingsPanel({
         </Section>
 
         <Section id="keybinds" title="Keybinds">
-          {(Object.entries(settings.keybinds) as [keyof Keybinds, string][]).map(([action, key]) => (
+          <div style={{ fontSize: "0.75rem", color: "#666", marginBottom: "4px" }}>
+            Each key toggles its feature on or off. Does not fire when typing in an input.
+          </div>
+          {(
+            [
+              ["openSettings",   "Open / close settings"],
+              ["toggleSearch",   "Show / hide search bar"],
+              ["toggleWeather",  "Show / hide weather"],
+              ["toggleDate",     "Show / hide date"],
+              ["toggleGreeting", "Show / hide greeting"],
+              ["toggleQuote",    "Show / hide quote"],
+              ["toggleScratchPad", "Open / close scratch pad"],
+              ["togglePomodoro", "Show / hide pomodoro"],
+            ] as [keyof Keybinds, string][]
+          ).map(([action, label]) => (
             <div key={action} style={{ ...S.row, justifyContent: "space-between" }}>
-              <span style={S.label}>{action.replace(/([A-Z])/g, " $1").toLowerCase()}</span>
+              <span style={{ ...S.label, marginBottom: 0 }}>{label}</span>
               <div style={S.row}>
-                <code style={{ backgroundColor: "#111", padding: "2px 6px", borderRadius: "2px", fontSize: "0.8rem" }}>
-                  {recordingKey === action ? "press a key..." : key}
+                <code style={{ backgroundColor: "#111", padding: "2px 8px", borderRadius: "2px", fontSize: "0.85rem", minWidth: "28px", textAlign: "center" }}>
+                  {recordingKey === action ? "..." : (settings.keybinds[action] || "—")}
                 </code>
-                <button style={S.btn} onClick={() => setRecordingKey(action)}>
-                  Record
+                <button
+                  style={{ ...S.btn, padding: "3px 8px", fontSize: "0.78rem" }}
+                  onClick={() => setRecordingKey(action)}
+                  data-testid={`button-record-keybind-${action}`}
+                >
+                  {recordingKey === action ? "press a key" : "change"}
                 </button>
               </div>
             </div>

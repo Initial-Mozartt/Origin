@@ -92,7 +92,7 @@ export function Startpage() {
     }
   }, [settings.fontFamily]);
 
-  // Keybinds
+  // Keybinds — each key toggles its feature on/off
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -100,21 +100,29 @@ export function Startpage() {
         return;
       }
 
-      if (e.key === settings.keybinds.openSettings) {
+      const kb = settings.keybinds;
+      if (e.key === kb.openSettings) {
         setSettingsOpen((prev) => !prev);
-      } else if (e.key === settings.keybinds.focusSearch && settings.showSearchBar) {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      } else if (e.key === settings.keybinds.toggleScratchPad && settings.scratchPadEnabled) {
+      } else if (e.key === kb.toggleSearch) {
+        update({ showSearchBar: !settings.showSearchBar });
+      } else if (e.key === kb.toggleWeather) {
+        update({ showWeather: !settings.showWeather });
+      } else if (e.key === kb.toggleDate) {
+        update({ showDate: !settings.showDate });
+      } else if (e.key === kb.toggleGreeting) {
+        update({ greeting: { ...settings.greeting, enabled: !settings.greeting.enabled } });
+      } else if (e.key === kb.toggleQuote) {
+        update({ showQuote: !settings.showQuote });
+      } else if (e.key === kb.toggleScratchPad) {
         setScratchPadOpen((prev) => !prev);
+      } else if (e.key === kb.togglePomodoro) {
+        update({ pomodoroEnabled: !settings.pomodoroEnabled });
       }
-      // Pomodoro toggle is handled inside Pomodoro component or we could add it here if we want global toggle of visibility? 
-      // Spec says: "Keybind toggles running state (if pomodoroEnabled)" - so it's about running the timer.
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [settings.keybinds, settings.showSearchBar, settings.scratchPadEnabled]);
+  }, [settings.keybinds, settings.showSearchBar, settings.showWeather, settings.showDate, settings.greeting, settings.showQuote, settings.pomodoroEnabled, update]);
 
   const timeString = (() => {
     if (settings.clock.format === "12h") {

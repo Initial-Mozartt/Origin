@@ -30,7 +30,11 @@ export interface ClockSettings {
 
 export interface Keybinds {
   openSettings: string;
-  focusSearch: string;
+  toggleSearch: string;
+  toggleWeather: string;
+  toggleDate: string;
+  toggleGreeting: string;
+  toggleQuote: string;
   toggleScratchPad: string;
   togglePomodoro: string;
 }
@@ -148,7 +152,11 @@ export const DEFAULT_SETTINGS: Settings = {
   customCss: "",
   keybinds: {
     openSettings: ",",
-    focusSearch: "/",
+    toggleSearch: "/",
+    toggleWeather: "w",
+    toggleDate: "d",
+    toggleGreeting: "g",
+    toggleQuote: "q",
     toggleScratchPad: "n",
     togglePomodoro: "p",
   },
