@@ -29,20 +29,24 @@ const WMO_CODES: Record<number, string> = {
 
 export function useWeather(unit: "f" | "c", enabled: boolean) {
   const [weather, setWeather] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     if (!enabled || !navigator.geolocation) {
       setWeather(null);
+      setCoords(null);
       return;
     }
 
     let isMounted = true;
 
     navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
+      async ({ coords: { latitude, longitude } }) => {
+        if (!isMounted) return;
+        setCoords({ latitude, longitude });
         try {
           const tempUnit = unit === "f" ? "fahrenheit" : "celsius";
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&current=temperature_2m,weather_code&temperature_unit=${tempUnit}`;
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&temperature_unit=${tempUnit}`;
           const res = await fetch(url);
           const data = await res.json();
           if (!isMounted) return;
@@ -55,7 +59,10 @@ export function useWeather(unit: "f" | "c", enabled: boolean) {
         }
       },
       () => {
-        if (isMounted) setWeather(null);
+        if (isMounted) {
+          setWeather(null);
+          setCoords(null);
+        }
       }
     );
 
@@ -64,5 +71,5 @@ export function useWeather(unit: "f" | "c", enabled: boolean) {
     };
   }, [unit, enabled]);
 
-  return weather;
+  return { weather, coords };
 }

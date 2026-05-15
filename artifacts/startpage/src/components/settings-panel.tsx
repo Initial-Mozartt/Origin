@@ -450,6 +450,34 @@ export function SettingsPanel({
               Cycle Now
             </button>
           </div>
+
+          <div style={S.divider} />
+
+          <div style={S.block}>
+            <span style={S.label}>Animated Background</span>
+            <label style={S.radioLabel}>
+              <input
+                type="checkbox"
+                checked={settings.animatedBg.enabled}
+                onChange={(e) => onUpdate({ animatedBg: { ...settings.animatedBg, enabled: e.target.checked } })}
+                style={S.checkbox}
+              />
+              Enable animation
+            </label>
+            <div style={S.radioGroup}>
+              {(["particles", "gradient"] as const).map((type) => (
+                <label key={type} style={S.radioLabel}>
+                  <input
+                    type="radio"
+                    checked={settings.animatedBg.type === type}
+                    onChange={() => onUpdate({ animatedBg: { ...settings.animatedBg, type } })}
+                    style={S.checkbox}
+                  />
+                  {type}
+                </label>
+              ))}
+            </div>
+          </div>
         </Section>
 
         <Section id="pages" title="Pages">
@@ -506,6 +534,15 @@ export function SettingsPanel({
               style={S.checkbox}
             />
             Quick-open overlay
+          </label>
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.showFavicons}
+              onChange={(e) => onUpdate({ showFavicons: e.target.checked })}
+              style={S.checkbox}
+            />
+            Show favicons next to links
           </label>
         </Section>
 
@@ -618,23 +655,158 @@ export function SettingsPanel({
           </label>
         </Section>
 
-        <Section id="motd" title="MOTD">
+        <Section id="todo" title="To-Do & Habits">
           <label style={S.radioLabel}>
             <input
               type="checkbox"
-              checked={settings.motd.enabled}
-              onChange={(e) => onUpdate({ motd: { ...settings.motd, enabled: e.target.checked } })}
+              checked={settings.todoEnabled}
+              onChange={(e) => onUpdate({ todoEnabled: e.target.checked })}
               style={S.checkbox}
             />
-            Enable MOTD
+            Enable to-do list ({settings.keybinds.toggleTodo})
           </label>
-          <input
-            type="text"
-            value={settings.motd.text}
-            onChange={(e) => onUpdate({ motd: { ...settings.motd, text: e.target.value } })}
-            placeholder="Message of the day"
-            style={S.input}
-          />
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.habitsEnabled}
+              onChange={(e) => onUpdate({ habitsEnabled: e.target.checked })}
+              style={S.checkbox}
+            />
+            Enable habit tracker ({settings.keybinds.toggleHabits})
+          </label>
+        </Section>
+
+        <Section id="widgets" title="Widgets">
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.wordOfDayEnabled}
+              onChange={(e) => onUpdate({ wordOfDayEnabled: e.target.checked })}
+              style={S.checkbox}
+            />
+            Word of the day
+          </label>
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.moonPhaseEnabled}
+              onChange={(e) => onUpdate({ moonPhaseEnabled: e.target.checked })}
+              style={S.checkbox}
+            />
+            Moon phase
+          </label>
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.dayProgressEnabled}
+              onChange={(e) => onUpdate({ dayProgressEnabled: e.target.checked })}
+              style={S.checkbox}
+            />
+            Day progress bar
+          </label>
+          {settings.dayProgressEnabled && (
+            <div style={S.row}>
+              <span style={S.label}>Color:</span>
+              <input
+                type="color"
+                value={settings.dayProgressColor || settings.hoverColor}
+                onChange={(e) => onUpdate({ dayProgressColor: e.target.value })}
+                style={{ width: "44px", height: "32px", border: "none", cursor: "pointer", background: "none" }}
+              />
+            </div>
+          )}
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.statusBarEnabled}
+              onChange={(e) => onUpdate({ statusBarEnabled: e.target.checked })}
+              style={S.checkbox}
+            />
+            Status bar
+          </label>
+          {settings.statusBarEnabled && (
+            <input
+              type="text"
+              value={settings.statusBarText}
+              onChange={(e) => onUpdate({ statusBarText: e.target.value })}
+              placeholder="Status bar text"
+              style={S.input}
+            />
+          )}
+        </Section>
+
+        <Section id="feeds" title="Feeds">
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.hackerNewsEnabled}
+              onChange={(e) => onUpdate({ hackerNewsEnabled: e.target.checked })}
+              style={S.checkbox}
+            />
+            Hacker News feed
+          </label>
+          {settings.hackerNewsEnabled && (
+            <div style={S.row}>
+              <span style={S.label}>Count:</span>
+              <input
+                type="number"
+                value={settings.hackerNewsCount}
+                onChange={(e) => onUpdate({ hackerNewsCount: parseInt(e.target.value) || 5 })}
+                style={{ ...S.input, width: "60px" }}
+              />
+            </div>
+          )}
+        </Section>
+
+        <Section id="tools" title="Tools">
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.converterEnabled}
+              onChange={(e) => onUpdate({ converterEnabled: e.target.checked })}
+              style={S.checkbox}
+            />
+            Converter ({settings.keybinds.toggleConverter})
+          </label>
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.readingListEnabled}
+              onChange={(e) => onUpdate({ readingListEnabled: e.target.checked })}
+              style={S.checkbox}
+            />
+            Reading list ({settings.keybinds.toggleReadingList})
+          </label>
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.passwordGenEnabled}
+              onChange={(e) => onUpdate({ passwordGenEnabled: e.target.checked })}
+              style={S.checkbox}
+            />
+            Password generator ({settings.keybinds.togglePasswordGen})
+          </label>
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.clipboardHistoryEnabled}
+              onChange={(e) => onUpdate({ clipboardHistoryEnabled: e.target.checked })}
+              style={S.checkbox}
+            />
+            Clipboard history (in-session)
+          </label>
+        </Section>
+
+        <Section id="display" title="Display">
+          <label style={S.radioLabel}>
+            <input
+              type="checkbox"
+              checked={settings.autoTheme}
+              onChange={(e) => onUpdate({ autoTheme: e.target.checked })}
+              style={S.checkbox}
+            />
+            Auto dark/light mode
+          </label>
         </Section>
 
         <Section id="weather" title="Weather">
@@ -648,26 +820,51 @@ export function SettingsPanel({
             Show weather
           </label>
           {settings.showWeather && (
-            <div style={S.radioGroup}>
+            <>
+              <div style={S.radioGroup}>
+                <label style={S.radioLabel}>
+                  <input
+                    type="radio"
+                    checked={settings.weatherUnit === "f"}
+                    onChange={() => onUpdate({ weatherUnit: "f" })}
+                    style={S.checkbox}
+                  />
+                  Fahrenheit (°F)
+                </label>
+                <label style={S.radioLabel}>
+                  <input
+                    type="radio"
+                    checked={settings.weatherUnit === "c"}
+                    onChange={() => onUpdate({ weatherUnit: "c" })}
+                    style={S.checkbox}
+                  />
+                  Celsius (°C)
+                </label>
+              </div>
+              <div style={S.divider} />
               <label style={S.radioLabel}>
                 <input
-                  type="radio"
-                  checked={settings.weatherUnit === "f"}
-                  onChange={() => onUpdate({ weatherUnit: "f" })}
+                  type="checkbox"
+                  checked={settings.weatherForecastEnabled}
+                  onChange={(e) => onUpdate({ weatherForecastEnabled: e.target.checked })}
                   style={S.checkbox}
                 />
-                Fahrenheit (°F)
+                Show forecast
               </label>
-              <label style={S.radioLabel}>
-                <input
-                  type="radio"
-                  checked={settings.weatherUnit === "c"}
-                  onChange={() => onUpdate({ weatherUnit: "c" })}
-                  style={S.checkbox}
-                />
-                Celsius (°C)
-              </label>
-            </div>
+              {settings.weatherForecastEnabled && (
+                <div style={S.row}>
+                  <span style={S.label}>Days (1-7):</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="7"
+                    value={settings.weatherForecastDays}
+                    onChange={(e) => onUpdate({ weatherForecastDays: parseInt(e.target.value) || 3 })}
+                    style={{ ...S.input, width: "60px" }}
+                  />
+                </div>
+              )}
+            </>
           )}
         </Section>
 
@@ -991,6 +1188,34 @@ export function SettingsPanel({
                 >
                   Remove
                 </button>
+              </div>
+              <div style={S.row}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1 }}>
+                  <span style={S.label}>BG</span>
+                  <input
+                    type="color"
+                    value={col.bgColor || "#111111"}
+                    onChange={(e) => {
+                      const newCols = [...activeColumns];
+                      newCols[colIdx].bgColor = e.target.value;
+                      onUpdateActiveColumns(newCols);
+                    }}
+                    style={{ width: "24px", height: "24px", border: "none", background: "none", padding: 0 }}
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1 }}>
+                  <span style={S.label}>Header</span>
+                  <input
+                    type="color"
+                    value={col.headerColor || "#ff79c6"}
+                    onChange={(e) => {
+                      const newCols = [...activeColumns];
+                      newCols[colIdx].headerColor = e.target.value;
+                      onUpdateActiveColumns(newCols);
+                    }}
+                    style={{ width: "24px", height: "24px", border: "none", background: "none", padding: 0 }}
+                  />
+                </div>
               </div>
               <div style={S.divider} />
               {col.links.map((link, linkIdx) => (

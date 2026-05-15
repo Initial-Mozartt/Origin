@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSettings } from "@/hooks/use-settings";
 import { SettingsPanel } from "@/components/settings-panel";
 import { useWeather } from "@/hooks/use-weather";
@@ -9,6 +9,16 @@ import { RssFeed } from "@/components/rss-feed";
 import { QuickOpen } from "@/components/quick-open";
 import { WorldClocks } from "@/components/world-clocks";
 import { Calculator } from "@/components/calculator";
+import { SnakeGame } from "@/components/snake-game";
+import { TodoList } from "@/components/todo-list";
+import { HabitTracker } from "@/components/habit-tracker";
+import { DayProgress } from "@/components/day-progress";
+import { WeatherForecast } from "@/components/weather-forecast";
+import { HackerNews } from "@/components/hacker-news";
+import { Converter } from "@/components/converter";
+import { ReadingList } from "@/components/reading-list";
+import { PasswordGen } from "@/components/password-gen";
+import { StatusBar } from "@/components/status-bar";
 
 const QUOTES = [
   "The quieter you become, the more you can hear.",
@@ -33,6 +43,54 @@ const QUOTES = [
   "The only way to do great work is to love what you do.",
 ];
 
+const WORDS_OF_DAY = [
+  { word: "serendipity", def: "the occurrence of fortunate events by chance" },
+  { word: "ephemeral", def: "lasting a very short time" },
+  { word: "mellifluous", def: "pleasantly smooth and musical to hear" },
+  { word: "sonder", def: "the realization that each passerby has a vivid life as complex as your own" },
+  { word: "hiraeth", def: "a longing for home that no longer exists" },
+  { word: "petrichor", def: "the pleasant smell after rain falls on dry earth" },
+  { word: "schadenfreude", def: "pleasure derived from another's misfortune" },
+  { word: "ineffable", def: "too great or extreme to be expressed in words" },
+  { word: "halcyon", def: "denoting a period of time that was idyllically happy and peaceful" },
+  { word: "soliloquy", def: "an act of speaking one's thoughts aloud when alone" },
+  { word: "laconic", def: "using very few words to express much" },
+  { word: "numinous", def: "having a strong religious or spiritual quality" },
+  { word: "oblivion", def: "the state of being unaware or forgotten" },
+  { word: "penumbra", def: "the partially shaded outer region of a shadow" },
+  { word: "quixotic", def: "exceedingly idealistic and impractical" },
+  { word: "reverie", def: "a state of being pleasantly lost in one's thoughts" },
+  { word: "sanguine", def: "optimistic, especially in a difficult situation" },
+  { word: "tenacious", def: "holding firmly to something, not easily discouraged" },
+  { word: "umbra", def: "the fully shaded inner region of a shadow" },
+  { word: "verisimilitude", def: "the appearance of being true or real" },
+  { word: "wabi-sabi", def: "a Japanese worldview centered on acceptance of transience and imperfection" },
+  { word: "xenial", def: "of or relating to hospitality toward guests" },
+  { word: "yugen", def: "a profound awareness of the universe that triggers emotional responses" },
+  { word: "zephyr", def: "a soft gentle breeze" },
+  { word: "liminal", def: "relating to a transitional period between two states" },
+  { word: "apophenia", def: "the tendency to perceive meaningful connections between unrelated things" },
+  { word: "gossamer", def: "something light, delicate, and insubstantial" },
+  { word: "iridescent", def: "showing luminous colors that seem to change when seen from different angles" },
+  { word: "lassitude", def: "physical or mental weariness; lack of energy" },
+  { word: "nebulous", def: "unclear, vague, or ill-defined" },
+  { word: "ossify", def: "to become rigid or inflexible in habits, attitudes, or opinions" },
+];
+
+function getMoonPhase(date: Date): string {
+  const known = new Date(2000, 0, 6);
+  const days = (date.getTime() - known.getTime()) / 86400000;
+  const phase = ((days % 29.53) + 29.53) % 29.53;
+  if (phase < 1.85) return "● New Moon";
+  if (phase < 7.38) return "◑ Waxing Crescent";
+  if (phase < 9.22) return "◑ First Quarter";
+  if (phase < 14.77) return "◕ Waxing Gibbous";
+  if (phase < 16.62) return "○ Full Moon";
+  if (phase < 22.15) return "◔ Waning Gibbous";
+  if (phase < 24.0) return "◔ Last Quarter";
+  return "◐ Waning Crescent";
+}
+
 function GearIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -51,9 +109,30 @@ export function Startpage() {
   const [focusedCol, setFocusedCol] = useState<number | null>(null);
   const [focusedLink, setFocusedLink] = useState<number | null>(null);
   const [isEditingMotd, setIsEditingMotd] = useState(false);
-  
+  const [snakeVisible, setSnakeVisible] = useState(false);
+  const [todoVisible, setTodoVisible] = useState(false);
+  const [habitsVisible, setHabitsVisible] = useState(false);
+  const [hnVisible, setHnVisible] = useState(false);
+  const [converterVisible, setConverterVisible] = useState(false);
+  const [readingListVisible, setReadingListVisible] = useState(false);
+  const [passwordGenVisible, setPasswordGenVisible] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [clipboardHistory, setClipboardHistory] = useState<string[]>([]);
+  const [clipboardHudVisible, setClipboardHudVisible] = useState(false);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dragSourceIndex = useRef<number | null>(null);
+  const konamiSeq = useRef<string[]>([]);
+
+  const KONAMI = ["ArrowUp","ArrowUp","ArrowDown","ArrowDown","ArrowLeft","ArrowRight","ArrowLeft","ArrowRight","b","a"];
+
+  const handleKonami = useCallback((key: string) => {
+    konamiSeq.current = [...konamiSeq.current, key].slice(-KONAMI.length);
+    if (konamiSeq.current.join(",") === KONAMI.join(",")) {
+      konamiSeq.current = [];
+      setSnakeVisible(true);
+    }
+  }, []);
 
   const {
     settings,
@@ -77,7 +156,7 @@ export function Startpage() {
     ? settings.pages[settings.currentPage].columns
     : settings.columns;
 
-  const weather = useWeather(settings.weatherUnit, settings.showWeather);
+  const { weather, coords: weatherCoords } = useWeather(settings.weatherUnit, settings.showWeather);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -136,9 +215,22 @@ export function Startpage() {
     }
   }, [settings.fontFamily]);
 
+  // Clipboard history
+  useEffect(() => {
+    if (!settings.clipboardHistoryEnabled) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const text = e.clipboardData?.getData("text");
+      if (text) setClipboardHistory(prev => [text, ...prev.filter(t => t !== text)].slice(0, 10));
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [settings.clipboardHistoryEnabled]);
+
   // Keybinds — each key toggles its feature on/off
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
+      handleKonami(e.key);
+
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
         return;
@@ -230,12 +322,24 @@ export function Startpage() {
         setCurrentPage((settings.currentPage + 1) % settings.pages.length);
       } else if (e.key === kb.prevPage && settings.pages.length > 1) {
         setCurrentPage((settings.currentPage - 1 + settings.pages.length) % settings.pages.length);
+      } else if (e.key === kb.toggleTodo) {
+        setTodoVisible(prev => !prev);
+      } else if (e.key === kb.toggleHabits) {
+        setHabitsVisible(prev => !prev);
+      } else if (e.key === kb.toggleFocusMode) {
+        setFocusMode(prev => !prev);
+      } else if (e.key === kb.toggleConverter) {
+        setConverterVisible(prev => !prev);
+      } else if (e.key === kb.toggleReadingList) {
+        setReadingListVisible(prev => !prev);
+      } else if (e.key === kb.togglePasswordGen) {
+        setPasswordGenVisible(prev => !prev);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [settings, activeColumns, focusedCol, focusedLink, update, setCurrentPage]);
+  }, [settings, activeColumns, focusedCol, focusedLink, update, setCurrentPage, handleKonami]);
 
   const timeString = (() => {
     if (settings.clock.format === "12h") {
@@ -376,7 +480,7 @@ export function Startpage() {
           <GearIcon />
         </button>
 
-        {settings.showSearchBar && (
+        {!focusMode && settings.showSearchBar && (
           <SearchBar 
             ref={searchInputRef} 
             engine={settings.searchEngine} 
@@ -396,14 +500,16 @@ export function Startpage() {
           {timeString}
         </div>
 
-        <WorldClocks 
-          clocks={settings.worldClocks} 
-          format={settings.clock.format} 
-          foregroundColor={settings.foregroundColor} 
-          time={time} 
-        />
+        {!focusMode && (
+          <WorldClocks 
+            clocks={settings.worldClocks} 
+            format={settings.clock.format} 
+            foregroundColor={settings.foregroundColor} 
+            time={time} 
+          />
+        )}
 
-        {settings.motd.enabled && (
+        {!focusMode && settings.motd.enabled && (
           <div
             data-testid="text-motd"
             style={{
@@ -440,7 +546,7 @@ export function Startpage() {
           </div>
         )}
 
-        {settings.showDate && (
+        {!focusMode && settings.showDate && (
           <div
             data-testid="text-date"
             style={{
@@ -450,10 +556,40 @@ export function Startpage() {
             }}
           >
             {dateString}
+            {settings.moonPhaseEnabled && (
+              <span style={{ fontSize: "0.8rem", opacity: 0.6, marginLeft: "12px" }}>
+                {getMoonPhase(time)}
+              </span>
+            )}
           </div>
         )}
 
-        {settings.greeting.enabled && (
+        {!focusMode && settings.moonPhaseEnabled && !settings.showDate && (
+          <div style={{ fontSize: "0.85rem", opacity: 0.6, marginBottom: "10px" }}>
+            {getMoonPhase(time)}
+          </div>
+        )}
+
+        {!focusMode && settings.wordOfDayEnabled && (
+          <div
+            data-testid="text-word-of-day"
+            style={{
+              fontSize: "0.85rem",
+              fontStyle: "italic",
+              opacity: 0.55,
+              marginBottom: "10px",
+              textAlign: "center",
+            }}
+          >
+            <span style={{ fontStyle: "normal", opacity: 0.8 }}>
+              {WORDS_OF_DAY[dayOfYear % WORDS_OF_DAY.length].word}
+            </span>
+            {" · "}
+            {WORDS_OF_DAY[dayOfYear % WORDS_OF_DAY.length].def}
+          </div>
+        )}
+
+        {!focusMode && settings.greeting.enabled && (
           <div
             data-testid="text-greeting"
             style={{
@@ -466,7 +602,7 @@ export function Startpage() {
           </div>
         )}
 
-        {countdownString && (
+        {!focusMode && countdownString && (
           <div
             data-testid="text-countdown"
             style={{
@@ -479,7 +615,7 @@ export function Startpage() {
           </div>
         )}
 
-        {settings.showWeather && weather && (
+        {!focusMode && settings.showWeather && weather && (
           <div
             data-testid="text-weather"
             style={{
@@ -497,7 +633,18 @@ export function Startpage() {
           </div>
         )}
 
-        {settings.showQuote && (
+        {!focusMode && settings.weatherForecastEnabled && weatherCoords && (
+          <WeatherForecast
+            enabled={settings.weatherForecastEnabled}
+            days={settings.weatherForecastDays}
+            unit={settings.weatherUnit}
+            lat={weatherCoords.latitude}
+            lon={weatherCoords.longitude}
+            foregroundColor={settings.foregroundColor}
+          />
+        )}
+
+        {!focusMode && settings.showQuote && (
           <div
             data-testid="text-quote"
             style={{
@@ -514,7 +661,7 @@ export function Startpage() {
           </div>
         )}
 
-        {settings.pomodoroEnabled && (
+        {!focusMode && settings.pomodoroEnabled && (
           <Pomodoro 
             workMinutes={settings.pomodoroWorkMinutes} 
             breakMinutes={settings.pomodoroBreakMinutes} 
@@ -523,6 +670,7 @@ export function Startpage() {
           />
         )}
 
+        {!focusMode && (
         <div style={{ 
           display: "flex", 
           gap: settings.compactMode ? "10px" : "15px", 
@@ -530,7 +678,12 @@ export function Startpage() {
           justifyContent: "center", 
           padding: settings.compactMode ? "10px" : "20px" 
         }}>
-          {activeColumns.map((col, colIdx) => (
+          {activeColumns.map((col, colIdx) => {
+            const colBg = col.bgColor
+              ? (settings.frostedGlass ? col.bgColor + "99" : col.bgColor)
+              : finalBoxBg;
+            const colHeaderClr = col.headerColor || settings.columnHeaderColor || settings.foregroundColor;
+            return (
             <div
               key={colIdx}
               draggable
@@ -538,7 +691,7 @@ export function Startpage() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => handleDrop(colIdx)}
               style={{
-                backgroundColor: finalBoxBg,
+                backgroundColor: colBg,
                 ...glassStyle,
                 padding: settings.compactMode ? "12px" : "20px",
                 width: settings.compactMode ? "120px" : "140px",
@@ -552,7 +705,7 @@ export function Startpage() {
                   marginTop: 0,
                   fontSize: "1rem",
                   marginBottom: settings.compactMode ? "10px" : "15px",
-                  color: settings.columnHeaderColor || settings.foregroundColor,
+                  color: colHeaderClr,
                   textAlign: "left",
                   fontWeight: "bold",
                 }}
@@ -572,17 +725,31 @@ export function Startpage() {
                         textDecoration: "none",
                         fontSize: "0.85rem",
                         transition: "color 0.1s",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.color = settings.hoverColor)}
                       onMouseLeave={(e) => (e.currentTarget.style.color = settings.keyboardNavEnabled && focusedCol === colIdx && focusedLink === linkIdx ? settings.hoverColor : settings.linkColor)}
                     >
+                      {settings.showFavicons && (
+                        <img
+                          src={`https://www.google.com/s2/favicons?domain=${new URL(link.url).hostname}&sz=16`}
+                          width={14}
+                          height={14}
+                          style={{ flexShrink: 0, opacity: 0.8 }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          alt=""
+                        />
+                      )}
                       {link.name}
                     </a>
                   </li>
                 ))}
               </ul>
             </div>
-          ))}
+            );
+          })}
 
           {settings.rssFeeds.map((feed, idx) => (
             <RssFeed
@@ -599,19 +766,120 @@ export function Startpage() {
             />
           ))}
         </div>
+        )}
 
-        {settings.pages.length > 1 && (
-          <div
-            style={{
-              marginTop: "20px",
-              opacity: 0.4,
-              fontSize: "0.8rem",
-            }}
-          >
+        {!focusMode && settings.pages.length > 1 && (
+          <div style={{ marginTop: "20px", opacity: 0.4, fontSize: "0.8rem" }}>
             {settings.currentPage + 1} / {settings.pages.length}
           </div>
         )}
+
+        {settings.hackerNewsEnabled && (
+          <button
+            data-testid="button-open-hn"
+            onClick={() => setHnVisible(prev => !prev)}
+            style={{
+              position: "absolute",
+              top: "16px",
+              right: "56px",
+              background: "rgba(0,0,0,0.35)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "2px",
+              color: "#999",
+              cursor: "pointer",
+              padding: "5px 8px",
+              fontSize: "0.75rem",
+              fontFamily: "monospace",
+              zIndex: 10,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = settings.hoverColor)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#999")}
+          >
+            HN
+          </button>
+        )}
+
+        {settings.clipboardHistoryEnabled && clipboardHistory.length > 0 && (
+          <div
+            style={{
+              position: "fixed",
+              bottom: settings.statusBarEnabled ? "36px" : "16px",
+              left: "16px",
+              zIndex: 500,
+            }}
+          >
+            <button
+              data-testid="button-clipboard-history"
+              onClick={() => setClipboardHudVisible(prev => !prev)}
+              style={{
+                background: "rgba(0,0,0,0.5)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "2px",
+                color: "#666",
+                cursor: "pointer",
+                padding: "4px 8px",
+                fontSize: "0.7rem",
+                fontFamily: "monospace",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = settings.hoverColor)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#666")}
+            >
+              clip ({clipboardHistory.length})
+            </button>
+            {clipboardHudVisible && (
+              <div style={{
+                position: "absolute",
+                bottom: "100%",
+                left: 0,
+                marginBottom: "4px",
+                background: settings.columnBgColor,
+                border: "1px solid #44475a",
+                borderRadius: "4px",
+                padding: "8px",
+                minWidth: "200px",
+                maxWidth: "300px",
+                maxHeight: "200px",
+                overflowY: "auto",
+              }}>
+                {clipboardHistory.map((item, i) => (
+                  <div
+                    key={i}
+                    data-testid={`clipboard-item-${i}`}
+                    onClick={() => { navigator.clipboard.writeText(item); setClipboardHudVisible(false); }}
+                    style={{
+                      padding: "4px 6px",
+                      fontSize: "0.75rem",
+                      cursor: "pointer",
+                      color: settings.linkColor,
+                      borderRadius: "2px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = settings.hoverColor)}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = settings.linkColor)}
+                  >
+                    {item.slice(0, 60)}{item.length > 60 ? "…" : ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      <DayProgress
+        enabled={settings.dayProgressEnabled}
+        progressColor={settings.dayProgressColor || settings.hoverColor}
+        bgColor={settings.columnBgColor}
+      />
+
+      <StatusBar
+        enabled={settings.statusBarEnabled}
+        text={settings.statusBarText}
+        foregroundColor={settings.foregroundColor}
+        bgColor={settings.columnBgColor}
+      />
 
       <ScratchPad 
         isOpen={scratchPadOpen} 
@@ -638,6 +906,69 @@ export function Startpage() {
         isOpen={calculatorVisible}
         onClose={() => setCalculatorVisible(false)}
         foregroundColor={settings.foregroundColor}
+      />
+
+      <SnakeGame
+        isVisible={snakeVisible}
+        onClose={() => setSnakeVisible(false)}
+        accentColor={settings.hoverColor}
+        foregroundColor={settings.foregroundColor}
+      />
+
+      <TodoList
+        isOpen={todoVisible}
+        onClose={() => setTodoVisible(false)}
+        todos={settings.todos}
+        onUpdate={(todos) => update({ todos })}
+        hoverColor={settings.hoverColor}
+        foregroundColor={settings.foregroundColor}
+        bgColor={settings.columnBgColor}
+      />
+
+      <HabitTracker
+        isOpen={habitsVisible}
+        onClose={() => setHabitsVisible(false)}
+        habits={settings.habits}
+        onUpdate={(habits) => update({ habits })}
+        hoverColor={settings.hoverColor}
+        foregroundColor={settings.foregroundColor}
+        bgColor={settings.columnBgColor}
+      />
+
+      <HackerNews
+        isOpen={hnVisible}
+        onClose={() => setHnVisible(false)}
+        count={settings.hackerNewsCount}
+        hoverColor={settings.hoverColor}
+        foregroundColor={settings.foregroundColor}
+        bgColor={settings.columnBgColor}
+        openInNewTab={settings.openLinksInNewTab}
+      />
+
+      <Converter
+        isVisible={converterVisible}
+        onClose={() => setConverterVisible(false)}
+        foregroundColor={settings.foregroundColor}
+        bgColor={settings.columnBgColor}
+      />
+
+      <ReadingList
+        isOpen={readingListVisible}
+        onClose={() => setReadingListVisible(false)}
+        readingList={settings.readingList}
+        onUpdate={(readingList) => update({ readingList })}
+        hoverColor={settings.hoverColor}
+        foregroundColor={settings.foregroundColor}
+        bgColor={settings.columnBgColor}
+        openInNewTab={settings.openLinksInNewTab}
+      />
+
+      <PasswordGen
+        isVisible={passwordGenVisible}
+        onClose={() => setPasswordGenVisible(false)}
+        foregroundColor={settings.foregroundColor}
+        bgColor={settings.columnBgColor}
+        accentColor={settings.hoverColor}
       />
 
       {settingsOpen && (

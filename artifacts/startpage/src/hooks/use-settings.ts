@@ -8,6 +8,8 @@ export interface LinkItem {
 export interface Column {
   heading: string;
   links: LinkItem[];
+  bgColor?: string;
+  headerColor?: string;
 }
 
 export interface RssFeed {
@@ -42,6 +44,12 @@ export interface Keybinds {
   cycleBackground: string;
   nextPage: string;
   prevPage: string;
+  toggleTodo: string;
+  toggleHabits: string;
+  toggleFocusMode: string;
+  toggleConverter: string;
+  toggleReadingList: string;
+  togglePasswordGen: string;
 }
 
 export interface Page {
@@ -99,6 +107,28 @@ export interface Settings {
   compactMode: boolean;
   scratchHistoryEnabled: boolean;
   backgroundCycle: BackgroundCycle;
+  todoEnabled: boolean;
+  todos: Array<{ id: string; text: string; completed: boolean; createdAt: number }>;
+  habitsEnabled: boolean;
+  habits: Array<{ id: string; name: string; completedDates: string[] }>;
+  dayProgressEnabled: boolean;
+  dayProgressColor: string;
+  weatherForecastEnabled: boolean;
+  weatherForecastDays: number;
+  wordOfDayEnabled: boolean;
+  moonPhaseEnabled: boolean;
+  hackerNewsEnabled: boolean;
+  hackerNewsCount: number;
+  showFavicons: boolean;
+  animatedBg: { enabled: boolean; type: "particles" | "gradient" | "none" };
+  autoTheme: boolean;
+  statusBarEnabled: boolean;
+  statusBarText: string;
+  converterEnabled: boolean;
+  readingListEnabled: boolean;
+  readingList: Array<{ id: string; title: string; url: string; addedAt: number }>;
+  passwordGenEnabled: boolean;
+  clipboardHistoryEnabled: boolean;
 }
 
 export const THEME_PRESETS = {
@@ -201,6 +231,12 @@ export const DEFAULT_SETTINGS: Settings = {
     cycleBackground: "b",
     nextPage: "]",
     prevPage: "[",
+    toggleTodo: "t",
+    toggleHabits: "h",
+    toggleFocusMode: "f",
+    toggleConverter: "u",
+    toggleReadingList: "r",
+    togglePasswordGen: "k",
   },
   openLinksInNewTab: false,
   keyboardNavEnabled: false,
@@ -217,6 +253,28 @@ export const DEFAULT_SETTINGS: Settings = {
   compactMode: false,
   scratchHistoryEnabled: false,
   backgroundCycle: { enabled: false, urls: [], intervalSeconds: 0, currentIndex: 0 },
+  todoEnabled: false,
+  todos: [],
+  habitsEnabled: false,
+  habits: [],
+  dayProgressEnabled: false,
+  dayProgressColor: "",
+  weatherForecastEnabled: false,
+  weatherForecastDays: 3,
+  wordOfDayEnabled: false,
+  moonPhaseEnabled: false,
+  hackerNewsEnabled: false,
+  hackerNewsCount: 5,
+  showFavicons: false,
+  animatedBg: { enabled: false, type: "particles" },
+  autoTheme: false,
+  statusBarEnabled: false,
+  statusBarText: "",
+  converterEnabled: false,
+  readingListEnabled: false,
+  readingList: [],
+  passwordGenEnabled: false,
+  clipboardHistoryEnabled: false,
 };
 
 const STORAGE_KEY = "startpage_settings";
@@ -238,8 +296,12 @@ function loadSettings(): Settings {
       countdown: { ...DEFAULT_SETTINGS.countdown, ...parsed.countdown },
       motd: { ...DEFAULT_SETTINGS.motd, ...parsed.motd },
       backgroundCycle: { ...DEFAULT_SETTINGS.backgroundCycle, ...parsed.backgroundCycle },
+      animatedBg: { ...DEFAULT_SETTINGS.animatedBg, ...parsed.animatedBg },
       pages: parsed.pages || DEFAULT_SETTINGS.pages,
       worldClocks: parsed.worldClocks || DEFAULT_SETTINGS.worldClocks,
+      todos: parsed.todos || DEFAULT_SETTINGS.todos,
+      habits: parsed.habits || DEFAULT_SETTINGS.habits,
+      readingList: parsed.readingList || DEFAULT_SETTINGS.readingList,
     };
   } catch {
     return DEFAULT_SETTINGS;
