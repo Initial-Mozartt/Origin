@@ -167,3 +167,6 @@ overrides:
   "yaml@2": "2.9.0"
   "brace-expansion@2": "2.1.0"
   "postcss": "8.5.14"
+
+allowBuilds:
+  esbuild: true
